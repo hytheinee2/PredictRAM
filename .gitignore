@@ -1,0 +1,3 @@
+hw/quartus/db/
+hw/quartus/incremental_db/
+__pycache__/
