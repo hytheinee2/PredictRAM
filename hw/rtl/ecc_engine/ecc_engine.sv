@@ -1,13 +1,83 @@
 top module ecc_engine #(
     parameter DATA_WIDTH = 64,
-    parameter ECC_WIDTH = 8
+    parameter ECC_WIDTH  = 8
+)(
+    input  logic                   clk,
+    input  logic                   rst_n,
 
+    // CPU Side (Write)
+    input  logic [DATA_WIDTH-1:0]  wdata_cpu,
+    input  logic                   wdata_valid,
     
-)
+    // DRAM Side (72-bit Raw Data)
+    output logic [DATA_WIDTH+ECC_WIDTH-1:0] dfi_wdata, 
+    input  logic [DATA_WIDTH+ECC_WIDTH-1:0] dfi_rdata, 
+    input  logic                            dfi_rdata_valid, 
+    
+    // CPU Side (Read)
+    output logic [DATA_WIDTH-1:0]  rdata_cpu,
+    output logic                   rdata_valid, 
+    
+    // Telemetry for ML Engine
+    output logic [ECC_WIDTH-1:0]   ml_syndrome,
+    output logic                   ml_err_sbe,
+    output logic                   ml_err_dbe
+);
+
+    // Internal wires from combinational blocks
+    logic [ECC_WIDTH-1:0]  wdata_ecc_comb;
+    logic [DATA_WIDTH-1:0] rdata_cpu_comb;
+    logic [ECC_WIDTH-1:0]  syndrome_comb;
+    logic                  sbe_comb, dbe_comb;
+
+    // --- 1. Combinational Logic Instances ---
+    ecc_encoder #(.DATA_WIDTH(DATA_WIDTH)) enc (
+        .data_in (wdata_cpu),
+        .ecc_out (wdata_ecc_comb)
+    );
+
+    ecc_decoder #(.DATA_WIDTH(DATA_WIDTH)) dec (
+        .data_in  (dfi_rdata[DATA_WIDTH-1:0]),
+        .ecc_in   (dfi_rdata[71:64]),
+        .data_out (rdata_cpu_comb),
+        .syndrome (syndrome_comb),
+        .err_sbe  (sbe_comb),
+        .err_dbe  (dbe_comb)
+    );
+
+    // --- 2. Sequential Logic (The Flip-Flops) ---
+    // We "register" the outputs to ensure clean timing.
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            dfi_wdata    <= '0;
+            rdata_cpu    <= '0;
+            rdata_valid  <= 1'b0;
+            ml_syndrome  <= '0;
+            ml_err_sbe   <= 1'b0;
+            ml_err_dbe   <= 1'b0;
+        end else begin
+            // Write Path: Capture encoded data for DRAM
+            if (wdata_valid) begin
+                dfi_wdata <= {wdata_ecc_comb, wdata_cpu};
+            end
+
+            // Read Path: Capture corrected data for CPU
+            rdata_cpu   <= rdata_cpu_comb;
+            rdata_valid <= dfi_rdata_valid;
+
+            // Telemetry: ONLY flag errors if the input data was valid!
+            if (dfi_rdata_valid) begin
+                ml_syndrome <= syndrome_comb;
+                ml_err_sbe  <= sbe_comb;
+                ml_err_dbe  <= dbe_comb;
+            end else begin
+                ml_err_sbe  <= 1'b0;
+                ml_err_dbe  <= 1'b0;
+            end
+        end
+    end
 
 endmodule
-
-
 
 module ecc_encoder #(
     parameter DATA_WIDTH = 64,
