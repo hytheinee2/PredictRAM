@@ -230,6 +230,15 @@ module ecc_decoder #(
                 8'hC8: data_out[61] = ~data_in[61];
                 8'hD0: data_out[62] = ~data_in[62];
                 8'hE0: data_out[63] = ~data_in[63];
+                // Parity Bit Syndromes (Weight 1)
+                8'h01: /* Parity Bit 0 Error - No data fix needed */;
+                8'h02: /* Parity Bit 1 Error - No data fix needed */;
+                8'h04: /* Parity Bit 2 Error - No data fix needed */;
+                8'h08: /* Parity Bit 3 Error - No data fix needed */;
+                8'h10: /* Parity Bit 4 Error - No data fix needed */;
+                8'h20: /* Parity Bit 5 Error - No data fix needed */;
+                8'h40: /* Parity Bit 6 Error - No data fix needed */;
+                8'h80: /* Parity Bit 7 Error - No data fix needed */;
                 default: ; // Double Bit Error
             endcase
         end else begin
