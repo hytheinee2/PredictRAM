@@ -21,7 +21,8 @@ top module ecc_engine #(
     // Telemetry for ML Engine
     output logic [ECC_WIDTH-1:0]   ml_syndrome,
     output logic                   ml_err_sbe,
-    output logic                   ml_err_dbe
+    output logic                   ml_err_dbe,
+    output logic                   ml_err_in_parity
 );
 
     // Internal wires from combinational blocks
@@ -29,6 +30,7 @@ top module ecc_engine #(
     logic [DATA_WIDTH-1:0] rdata_cpu_comb;
     logic [ECC_WIDTH-1:0]  syndrome_comb;
     logic                  sbe_comb, dbe_comb;
+    logic                  parity_err_comb;
 
     // --- 1. Combinational Logic Instances ---
     ecc_encoder #(.DATA_WIDTH(DATA_WIDTH)) enc (
@@ -42,7 +44,8 @@ top module ecc_engine #(
         .data_out (rdata_cpu_comb),
         .syndrome (syndrome_comb),
         .err_sbe  (sbe_comb),
-        .err_dbe  (dbe_comb)
+        .err_dbe  (dbe_comb),
+        .err_in_parity (parity_err_comb)
     );
 
     // --- 2. Sequential Logic (The Flip-Flops) ---
@@ -73,6 +76,7 @@ top module ecc_engine #(
             end else begin
                 ml_err_sbe  <= 1'b0;
                 ml_err_dbe  <= 1'b0;
+                ml_err_in_parity <= 1'b0;
             end
         end
     end
@@ -140,9 +144,9 @@ module ecc_decoder #(
 
     // 2. Error Detection (Hsiao Logic)
     always_comb begin
-        
          err_sbe = 0;
          err_dbe = 0;
+         err_in_parity = 0;
          data_out = data_in;
         // Count the number of 1s in the syndrome (Population Count)
         // Hsiao Magic: Odd syndrome weight = SBE. Even syndrome weight = DBE.
@@ -150,9 +154,8 @@ module ecc_decoder #(
         weight = 0;
         for (int i=0; i<8; i++) weight += syndrome[i];
 
-        if (syndrome == 0) begin
-           
-        end else if (weight % 2 == 1) begin
+        if (syndrome != 0) begin
+          if (weight % 2 == 1) begin
             // ODD WEIGHT = Single Bit Error (Correctable)
             err_sbe = 1;
             err_dbe = 0;
@@ -231,14 +234,9 @@ module ecc_decoder #(
                 8'hD0: data_out[62] = ~data_in[62];
                 8'hE0: data_out[63] = ~data_in[63];
                 // Parity Bit Syndromes (Weight 1)
-                8'h01: /* Parity Bit 0 Error - No data fix needed */;
-                8'h02: /* Parity Bit 1 Error - No data fix needed */;
-                8'h04: /* Parity Bit 2 Error - No data fix needed */;
-                8'h08: /* Parity Bit 3 Error - No data fix needed */;
-                8'h10: /* Parity Bit 4 Error - No data fix needed */;
-                8'h20: /* Parity Bit 5 Error - No data fix needed */;
-                8'h40: /* Parity Bit 6 Error - No data fix needed */;
-                8'h80: /* Parity Bit 7 Error - No data fix needed */;
+                8'h01, 8'h02, 8'h04, 8'h08, 8'h10, 8'h20, 8'h40, 8'h80: begin 
+                        err_in_parity = 1'b1; // Flag the ML, but leave data_out alone
+                    end
                 default: ; // Double Bit Error
             endcase
         end else begin
