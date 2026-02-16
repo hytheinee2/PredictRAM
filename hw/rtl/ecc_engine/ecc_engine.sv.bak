@@ -1,4 +1,4 @@
-module ecc_engine #(
+top module ecc_engine #(
     parameter DATA_WIDTH = 64,
     parameter ECC_WIDTH  = 8
 )(
