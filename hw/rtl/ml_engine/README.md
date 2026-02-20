@@ -42,8 +42,8 @@ Third layer:
 -	3 neurons (Corresponds to 3 classes, Scrub, Refresh, No Action)
 -	Softmax activation (Converts 3 classes into probability which sum to 1)
 <br>
-## Training of the ml model:  
-<br>
+
+## Training of the ml model:
 <img width="667" height="455" alt="image" src="https://github.com/user-attachments/assets/29c8eabe-ddb8-4c24-9cf7-3d339731778c" />  
 
 
