@@ -38,3 +38,6 @@ Simulated using ModelSim Intel FPGA Edition 20.1.
 Waveforms verified for:
 - Correct priority handling
 - Proper handshake with FSM
+
+  <img width="1916" height="1032" alt="image" src="https://github.com/user-attachments/assets/4af0a1f6-b77a-4a9b-83f9-4e16429a98a8" />
+
