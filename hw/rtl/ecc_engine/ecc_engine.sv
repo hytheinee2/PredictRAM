@@ -1,0 +1,255 @@
+module ecc_engine #(
+    parameter DATA_WIDTH = 64,
+    parameter ECC_WIDTH  = 8
+)(
+    input  logic                   clk,
+    input  logic                   rst_n,
+
+    // CPU Side (Write)
+    input  logic [DATA_WIDTH-1:0]  wdata_cpu,
+    input  logic                   wdata_valid,
+    
+    // DRAM Side (72-bit Raw Data)
+    output logic [DATA_WIDTH+ECC_WIDTH-1:0] dfi_wdata, 
+	output logic                            dfi_wdata_valid,
+    input  logic [DATA_WIDTH+ECC_WIDTH-1:0] dfi_rdata, 
+    input  logic                            dfi_rdata_valid, 
+    
+    // CPU Side (Read)
+    output logic [DATA_WIDTH-1:0]  rdata_cpu,
+    output logic                   rdata_valid, 
+    
+    // Telemetry for ML Engine
+    output logic [ECC_WIDTH-1:0]   ml_syndrome,
+    output logic                   ml_err_sbe,
+    output logic                   ml_err_dbe,
+    output logic                   ml_err_in_parity
+);
+
+    // Internal wires from combinational blocks
+    logic [ECC_WIDTH-1:0]  wdata_ecc_comb;
+    logic [DATA_WIDTH-1:0] rdata_cpu_comb;
+    logic [ECC_WIDTH-1:0]  syndrome_comb;
+    logic                  sbe_comb, dbe_comb;
+    logic                  parity_err_comb;
+
+    // --- 1. Combinational Logic Instances ---
+    ecc_encoder #(.DATA_WIDTH(DATA_WIDTH)) enc (
+        .data_in (wdata_cpu),
+        .ecc_out (wdata_ecc_comb)
+    );
+
+    ecc_decoder #(.DATA_WIDTH(DATA_WIDTH)) dec (
+        .data_in  (dfi_rdata[DATA_WIDTH-1:0]),
+        .ecc_in   (dfi_rdata[71:64]),
+        .data_out (rdata_cpu_comb),
+        .syndrome (syndrome_comb),
+        .err_sbe  (sbe_comb),
+        .err_dbe  (dbe_comb),
+        .err_in_parity (parity_err_comb)
+    );
+
+    // --- 2. Sequential Logic (The Flip-Flops) ---
+    // We "register" the outputs to ensure clean timing.
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            dfi_wdata    <= '0;
+            rdata_cpu    <= '0;
+            rdata_valid  <= 1'b0;
+            ml_syndrome  <= '0;
+            ml_err_sbe   <= 1'b0;
+            ml_err_dbe   <= 1'b0;
+        end else begin
+            // Write Path: Capture encoded data for DRAM
+            if (wdata_valid) begin
+                dfi_wdata <= {wdata_ecc_comb, wdata_cpu};
+				dfi_wdata_valid <= wdata_valid;
+            end
+
+            // Read Path: Capture corrected data for CPU
+            rdata_cpu   <= rdata_cpu_comb;
+            rdata_valid <= dfi_rdata_valid;
+
+            // Telemetry: ONLY flag errors if the input data was valid!
+            if (dfi_rdata_valid) begin
+                ml_syndrome <= syndrome_comb;
+                ml_err_sbe  <= sbe_comb;
+                ml_err_dbe  <= dbe_comb;
+                ml_err_in_parity <= parity_err_comb;
+            end else begin
+                ml_err_sbe  <= 1'b0;
+                ml_err_dbe  <= 1'b0;
+                ml_err_in_parity <= 1'b0;
+            end
+        end
+    end
+
+endmodule
+
+module ecc_encoder #(
+    parameter DATA_WIDTH = 64,
+    parameter ECC_WIDTH  = 8
+)(
+    input  logic [DATA_WIDTH-1:0] data_in,
+    output logic [ECC_WIDTH-1:0]  ecc_out
+);
+    // ------------------------------------------------------------------------
+    // Hsiao Code (72,64) Matrix - "Optimization" Grade
+    // ------------------------------------------------------------------------
+    // These masks are mathematically balanced. 
+    // Property 1: Distinct Columns (Uniqueness)
+    // Property 2: No Column has Even Weight (Guarantees DED)
+    // Property 3: Row Weight is ~26 (Balanced Timing Paths)
+    // ------------------------------------------------------------------------
+
+    always_comb begin
+    ecc_out[0] = ^(data_in & 64'h0422_5853_2DA6_5CB7);
+    ecc_out[1] = ^(data_in & 64'h0844_A895_56AA_AD5B);
+    ecc_out[2] = ^(data_in & 64'h1089_3119_9B33_366D);
+    ecc_out[3] = ^(data_in & 64'h2111_C221_E3C3_C78E);
+    ecc_out[4] = ^(data_in & 64'h421E_043E_03FC_07F0);
+    ecc_out[5] = ^(data_in & 64'h83E0_07C0_03FF_F800);
+    ecc_out[6] = ^(data_in & 64'hFC00_07FF_FC00_0000);
+    ecc_out[7] = ^(data_in & 64'hFFFF_F800_0000_0000);
+end
+
+endmodule
+
+
+module ecc_decoder #(
+    parameter DATA_WIDTH = 64,
+    parameter ECC_WIDTH  = 8
+)(
+    input  logic [DATA_WIDTH-1:0] data_in,
+    input  logic [ECC_WIDTH-1:0]  ecc_in,
+    
+    output logic [DATA_WIDTH-1:0] data_out,
+    output logic [ECC_WIDTH-1:0]  syndrome,
+    output logic                  err_sbe,
+    output logic                  err_dbe,
+    output logic                  err_in_parity
+);
+
+    logic [ECC_WIDTH-1:0] recalc_ecc;
+    logic [3:0] weight;
+    
+    // 1. Re-Calculate ECC (Must match Encoder EXACTLY)
+    always_comb begin
+        recalc_ecc[0] = ^(data_in & 64'h0422_5853_2DA6_5CB7) ^ ecc_in[0];
+        recalc_ecc[1] = ^(data_in & 64'h0844_A895_56AA_AD5B) ^ ecc_in[1];
+        recalc_ecc[2] = ^(data_in & 64'h1089_3119_9B33_366D) ^ ecc_in[2];
+        recalc_ecc[3] = ^(data_in & 64'h2111_C221_E3C3_C78E) ^ ecc_in[3];
+        recalc_ecc[4] = ^(data_in & 64'h421E_043E_03FC_07F0) ^ ecc_in[4];
+        recalc_ecc[5] = ^(data_in & 64'h83E0_07C0_03FF_F800) ^ ecc_in[5];
+        recalc_ecc[6] = ^(data_in & 64'hFC00_07FF_FC00_0000) ^ ecc_in[6];
+        recalc_ecc[7] = ^(data_in & 64'hFFFF_F800_0000_0000) ^ ecc_in[7];
+        
+        syndrome = recalc_ecc;
+    end
+
+    // 2. Error Detection (Hsiao Logic)
+    always_comb begin
+         err_sbe = 0;
+         err_dbe = 0;
+         err_in_parity = 0;
+         data_out = data_in;
+        // Count the number of 1s in the syndrome (Population Count)
+        // Hsiao Magic: Odd syndrome weight = SBE. Even syndrome weight = DBE.
+        
+        weight = 0;
+        for (int i=0; i<8; i++) weight += syndrome[i];
+
+        if (syndrome != 0) begin
+         if (weight[0] == 1'b1) begin
+            // ODD WEIGHT = Single Bit Error (Correctable)
+            err_sbe = 1;
+            err_dbe = 0;
+            
+            // Correction Logic:
+            // In Hsiao, we can't just use "Syndrome = Position".
+            // We have to scan the columns to see which one matches the syndrome.
+            data_out = data_in; // Default
+   
+            // -----------------------------------------------------
+            // CORRECTION LOOKUP TABLE (Generated via Python)
+            // -----------------------------------------------------
+            case (syndrome)
+                8'h07: data_out[0] = ~data_in[0];
+                8'h0B: data_out[1] = ~data_in[1];
+                8'h0D: data_out[2] = ~data_in[2];
+                8'h0E: data_out[3] = ~data_in[3];
+                8'h13: data_out[4] = ~data_in[4];
+                8'h15: data_out[5] = ~data_in[5];
+                8'h16: data_out[6] = ~data_in[6];
+                8'h19: data_out[7] = ~data_in[7];
+                8'h1A: data_out[8] = ~data_in[8];
+                8'h1C: data_out[9] = ~data_in[9];
+                8'h1F: data_out[10] = ~data_in[10];
+                8'h23: data_out[11] = ~data_in[11];
+                8'h25: data_out[12] = ~data_in[12];
+                8'h26: data_out[13] = ~data_in[13];
+                8'h29: data_out[14] = ~data_in[14];
+                8'h2A: data_out[15] = ~data_in[15];
+                8'h2C: data_out[16] = ~data_in[16];
+                8'h2F: data_out[17] = ~data_in[17];
+                8'h31: data_out[18] = ~data_in[18];
+                8'h32: data_out[19] = ~data_in[19];
+                8'h34: data_out[20] = ~data_in[20];
+                8'h37: data_out[21] = ~data_in[21];
+                8'h38: data_out[22] = ~data_in[22];
+                8'h3B: data_out[23] = ~data_in[23];
+                8'h3D: data_out[24] = ~data_in[24];
+                8'h3E: data_out[25] = ~data_in[25];
+                8'h43: data_out[26] = ~data_in[26];
+                8'h45: data_out[27] = ~data_in[27];
+                8'h46: data_out[28] = ~data_in[28];
+                8'h49: data_out[29] = ~data_in[29];
+                8'h4A: data_out[30] = ~data_in[30];
+                8'h4C: data_out[31] = ~data_in[31];
+                8'h4F: data_out[32] = ~data_in[32];
+                8'h51: data_out[33] = ~data_in[33];
+                8'h52: data_out[34] = ~data_in[34];
+                8'h54: data_out[35] = ~data_in[35];
+                8'h57: data_out[36] = ~data_in[36];
+                8'h58: data_out[37] = ~data_in[37];
+                8'h61: data_out[38] = ~data_in[38];
+                8'h62: data_out[39] = ~data_in[39];
+                8'h64: data_out[40] = ~data_in[40];
+                8'h68: data_out[41] = ~data_in[41];
+                8'h70: data_out[42] = ~data_in[42];
+                8'h83: data_out[43] = ~data_in[43];
+                8'h85: data_out[44] = ~data_in[44];
+                8'h86: data_out[45] = ~data_in[45];
+                8'h89: data_out[46] = ~data_in[46];
+                8'h8A: data_out[47] = ~data_in[47];
+                8'h8C: data_out[48] = ~data_in[48];
+                8'h91: data_out[49] = ~data_in[49];
+                8'h92: data_out[50] = ~data_in[50];
+                8'h94: data_out[51] = ~data_in[51];
+                8'h98: data_out[52] = ~data_in[52];
+                8'hA1: data_out[53] = ~data_in[53];
+                8'hA2: data_out[54] = ~data_in[54];
+                8'hA4: data_out[55] = ~data_in[55];
+                8'hA8: data_out[56] = ~data_in[56];
+                8'hB0: data_out[57] = ~data_in[57];
+                8'hC1: data_out[58] = ~data_in[58];
+                8'hC2: data_out[59] = ~data_in[59];
+                8'hC4: data_out[60] = ~data_in[60];
+                8'hC8: data_out[61] = ~data_in[61];
+                8'hD0: data_out[62] = ~data_in[62];
+                8'hE0: data_out[63] = ~data_in[63];
+                // Parity Bit Syndromes (Weight 1)
+                8'h01, 8'h02, 8'h04, 8'h08, 8'h10, 8'h20, 8'h40, 8'h80: begin 
+                        err_in_parity = 1'b1; // Flag the ML, but leave data_out alone
+                end
+                default: ; // Double Bit Error
+            endcase
+        end else begin
+            // EVEN WEIGHT (and non-zero) = Double Bit Error (Uncorrectable)
+            err_sbe = 0;
+            err_dbe = 1;
+            data_out = data_in; // Do not correct
+        end
+      end
+    end 
+endmodule

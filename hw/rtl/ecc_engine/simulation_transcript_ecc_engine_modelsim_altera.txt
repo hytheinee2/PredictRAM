@@ -1,0 +1,73 @@
+# Reading pref.tcl
+# do ecc_engine_run_msim_rtl_verilog.do
+# if {[file exists rtl_work]} {
+# 	vdel -lib rtl_work -all
+# }
+# vlib rtl_work
+# vmap work rtl_work
+# Model Technology ModelSim - Intel FPGA Edition vmap 2020.1 Lib Mapping Utility 2020.02 Feb 28 2020
+# vmap work rtl_work 
+# Copying C:/intelFPGA_lite/20.1/modelsim_ase/win32aloem/../modelsim.ini to modelsim.ini
+# Modifying modelsim.ini
+# 
+# vlog -sv -work work +incdir+C:/Users/Takeshi/PredictRAM/ecc_engine {C:/Users/Takeshi/PredictRAM/ecc_engine/ecc_engine.sv}
+# Model Technology ModelSim - Intel FPGA Edition vlog 2020.1 Compiler 2020.02 Feb 28 2020
+# Start time: 21:05:59 on Feb 22,2026
+# vlog -reportprogress 300 -sv -work work "+incdir+C:/Users/Takeshi/PredictRAM/ecc_engine" C:/Users/Takeshi/PredictRAM/ecc_engine/ecc_engine.sv 
+# -- Compiling module ecc_engine
+# -- Compiling module ecc_encoder
+# -- Compiling module ecc_decoder
+# 
+# Top level modules:
+# 	ecc_engine
+# End time: 21:05:59 on Feb 22,2026, Elapsed time: 0:00:00
+# Errors: 0, Warnings: 0
+# 
+# vlog -sv -work work +incdir+C:/Users/Takeshi/PredictRAM/ecc_engine {C:/Users/Takeshi/PredictRAM/ecc_engine/ecc_engine_tb.sv}
+# Model Technology ModelSim - Intel FPGA Edition vlog 2020.1 Compiler 2020.02 Feb 28 2020
+# Start time: 21:05:59 on Feb 22,2026
+# vlog -reportprogress 300 -sv -work work "+incdir+C:/Users/Takeshi/PredictRAM/ecc_engine" C:/Users/Takeshi/PredictRAM/ecc_engine/ecc_engine_tb.sv 
+# -- Compiling module ecc_engine_tb
+# 
+# Top level modules:
+# 	ecc_engine_tb
+# End time: 21:05:59 on Feb 22,2026, Elapsed time: 0:00:00
+# Errors: 0, Warnings: 0
+# 
+# vsim -t 1ps -L altera_ver -L lpm_ver -L sgate_ver -L altera_mf_ver -L altera_lnsim_ver -L cyclonev_ver -L cyclonev_hssi_ver -L cyclonev_pcie_hip_ver -L rtl_work -L work -voptargs="+acc"  ecc_engine_tb
+# vsim -t 1ps -L altera_ver -L lpm_ver -L sgate_ver -L altera_mf_ver -L altera_lnsim_ver -L cyclonev_ver -L cyclonev_hssi_ver -L cyclonev_pcie_hip_ver -L rtl_work -L work -voptargs=""+acc"" ecc_engine_tb 
+# Start time: 21:05:59 on Feb 22,2026
+# Loading sv_std.std
+# Loading work.ecc_engine_tb
+# Loading work.ecc_engine
+# Loading work.ecc_encoder
+# Loading work.ecc_decoder
+# 
+# add wave *
+# view structure
+# .main_pane.structure.interior.cs.body.struct
+# view signals
+# .main_pane.objects.interior.cs.body.tree
+# run -all
+# =======================================================================================
+#                            PredictRAM ECC Engine Verification                          
+# =======================================================================================
+# Test Case              | Err Type |  SBE  |  DBE  | Parity Err | Corrected || Status 
+# ---------------------------------------------------------------------------------------
+# All Zeros              | CLEAN    |   0   |   0   |    0    |    1    || PASS
+# All Ones               | CLEAN    |   0   |   0   |    0    |    1    || PASS
+# Random Pattern         | CLEAN    |   0   |   0   |    0    |    1    || PASS
+# SBE Data Bit 0         | SBE_DATA |   1   |   0   |    0    |    1    || PASS
+# SBE Data Bit 31        | SBE_DATA |   1   |   0   |    0    |    1    || PASS
+# SBE Data Bit 63        | SBE_DATA |   1   |   0   |    0    |    1    || PASS
+# SBE ECC Bit 64         | SBE_ECC  |   1   |   0   |    1    |    1    || PASS
+# SBE ECC Bit 71         | SBE_ECC  |   1   |   0   |    1    |    1    || PASS
+# DBE Bits 0 & 1         | DBE      |   0   |   1   |    0    |    0    || PASS
+# DBE Bits 31 & 32       | DBE      |   0   |   1   |    0    |    0    || PASS
+# DBE Data & ECC         | DBE      |   0   |   1   |    0    |    0    || PASS
+# Invalid Read Data      | INVALID  |   0   |   0   |    0    |    1    || PASS
+# =======================================================================================
+# ** Note: $finish    : C:/Users/Takeshi/PredictRAM/ecc_engine/ecc_engine_tb.sv(177)
+#    Time: 506 ns  Iteration: 0  Instance: /ecc_engine_tb
+# 1
+# Break in Module ecc_engine_tb at C:/Users/Takeshi/PredictRAM/ecc_engine/ecc_engine_tb.sv line 177
