@@ -11,6 +11,7 @@ module ecc_engine #(
     
     // DRAM Side (72-bit Raw Data)
     output logic [DATA_WIDTH+ECC_WIDTH-1:0] dfi_wdata, 
+	output logic                            dfi_wdata_valid,
     input  logic [DATA_WIDTH+ECC_WIDTH-1:0] dfi_rdata, 
     input  logic                            dfi_rdata_valid, 
     
@@ -62,6 +63,7 @@ module ecc_engine #(
             // Write Path: Capture encoded data for DRAM
             if (wdata_valid) begin
                 dfi_wdata <= {wdata_ecc_comb, wdata_cpu};
+				dfi_wdata_valid <= wdata_valid;
             end
 
             // Read Path: Capture corrected data for CPU
@@ -129,7 +131,7 @@ module ecc_decoder #(
 );
 
     logic [ECC_WIDTH-1:0] recalc_ecc;
-    int weight;
+    logic [3:0] weight;
     
     // 1. Re-Calculate ECC (Must match Encoder EXACTLY)
     always_comb begin
@@ -158,7 +160,7 @@ module ecc_decoder #(
         for (int i=0; i<8; i++) weight += syndrome[i];
 
         if (syndrome != 0) begin
-         if (weight % 2 == 1) begin
+         if (weight[0] == 1'b1) begin
             // ODD WEIGHT = Single Bit Error (Correctable)
             err_sbe = 1;
             err_dbe = 0;
