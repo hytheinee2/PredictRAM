@@ -36,3 +36,6 @@ IDLE → REF → WAIT_TRFC → IDLE
 - Simulated using ModelSim Intel FPGA Edition 20.1
 - State transitions verified via waveform
 - DFI command encoding confirmed correct
+
+<img width="1916" height="1032" alt="image" src="https://github.com/user-attachments/assets/23b3ec95-175b-4ace-a915-c774a3233bf5" />
+
