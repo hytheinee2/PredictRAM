@@ -65,3 +65,148 @@ else  \
 
 
 
+# PredictRAM: Hybrid ML Engine for DRAM Error Mitigation
+
+PredictRAM is a hardware-software co-designed system that utilizes a Hybrid Machine Learning Engine to dynamically predict, manage, and mitigate DRAM memory errors. By combining the adaptive predictive power of a Random Forest classifier with a hard-coded "Safety Layer" of expert rules, the engine determines the optimal memory maintenance action in real-time.
+
+## Project Overview
+
+Modern DRAM faces challenges like Rowhammer and variable retention times. PredictRAM addresses this by monitoring error rates, hit counts, and unique access patterns to issue commands like `SCRUB` or `REFRESH`.
+
+The system trains a machine learning model on memory error logs (such as `mcelog`), exports the learned decision trees directly into SystemVerilog, and wraps them in deterministic hardware rules to guarantee system reliability.
+
+## Repository Contents
+
+* **`ml_model.py` & `ml_model_RF.py**`: Python scripts used to process DRAM error datasets, train neural network and Random Forest classification models, and automatically generate the SystemVerilog hardware description.
+* **`ML_engine_RF.sv`**: The generated SystemVerilog core module. It contains multiple parallel decision trees, majority voter logic, and the safety rule layer.
+
+
+* 
+**`ML_engine_RF_tb.sv`**: The SystemVerilog testbench used to validate the module against boundary conditions and pure ML-domain decisions.
+
+
+* 
+**`simulation_transcript_ML_engine_modelsim_altera.txt`**: The simulation transcript verifying the design compiles and simulates with zero errors or warnings.
+
+
+
+---
+
+## Hardware Interface (`ML_engine_RF.sv`)
+
+The core engine takes in 16-bit performance and error metrics and outputs a 2-bit decision.
+
+**Inputs:**
+
+* 
+`total_errors`: Total logged errors for a given memory group.
+
+
+* 
+`read_errors`: Number of read-related errors.
+
+
+* 
+`write_errors`: Number of write-related errors.
+
+
+* 
+`scrub_errors`: Number of scrub-related errors.
+
+
+* 
+`unique_rows`: Count of unique rows accessed.
+
+
+* 
+`unique_cols`: Count of unique columns accessed.
+
+
+* 
+`max_row_hits`: Maximum hits on a single row (Rowhammer indicator).
+
+
+* 
+`max_col_hits`: Maximum hits on a single column.
+
+
+* 
+`error_rate_int`: Calculated error rate over time.
+
+
+
+**Outputs:**
+
+* 
+`final_action`: The 2-bit mitigation decision.
+
+
+* 
+`0`: NO_ACTION.
+
+
+* 
+`1`: SCRUB.
+
+
+* 
+`2`: REFRESH.
+
+
+
+---
+
+## Architecture: The Hybrid Approach
+
+The engine achieves high reliability by running two decision paths in parallel:
+
+1. 
+**Parallel Expert Rules (Safety Layer)**: Hard-coded thresholds evaluate conditions critical to memory integrity. For example, if `max_row_hits` is 64 or greater, or if the ratio of unique rows to total errors triggers a threshold, the system will force a `SCRUB` action. If the error rate is high alongside multiple unique column hits, it forces a `REFRESH`.
+
+
+2. 
+**ML Majority Voter Logic**: If the hard-coded rules are not triggered, the Random Forest model takes over. It runs the input parameters through parallel decision trees (Tree 0 to Tree 4) and uses a majority voting system to determine the final action.
+
+
+
+The hard rules will always override the ML vote if triggered, guaranteeing system reliability even in unpredictable edge cases.
+
+---
+
+## Simulation & Testing
+
+The module was successfully compiled and tested using ModelSim - Intel FPGA Edition vlog 2020.1.
+
+The testbench validates the logic across several distinct scenarios:
+
+* 
+**All Zeros**: Validates baseline behavior.
+
+
+* 
+**RowHits Edge (64)**: Tests the exact boundary for a forced scrub.
+
+
+* 
+**Ratio Rule (<0.2)**: Tests the integer-math unique rows vs. total errors rule.
+
+
+* 
+**Ratio Edge (=0.2)**: Tests the boundary condition of the ratio rule.
+
+
+* 
+**Rate+Col Edge**: Tests the boundary for a forced refresh.
+
+
+* 
+**High Rate/Low Col**: Verifies the hand-off to the ML logic when a hard rule is narrowly missed.
+
+
+* 
+**ML pure decision**: Evaluates the Random Forest output under low-level noise conditions.
+
+
+---
+
+
