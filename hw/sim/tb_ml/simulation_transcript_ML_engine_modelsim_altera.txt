@@ -1,0 +1,52 @@
+# Model Technology ModelSim - Intel FPGA Edition vlog 2020.1 Compiler 2020.02 Feb 28 2020
+# Start time: 18:52:41 on Feb 22,2026
+# vlog -reportprogress 300 -sv -work work "+incdir+C:/Users/Takeshi/PredictRAM/ML_engine" C:/Users/Takeshi/PredictRAM/ML_engine/ML_engine_RF.sv 
+# -- Compiling module ML_engine_RF
+# 
+# Top level modules:
+# 	ML_engine_RF
+# End time: 18:52:41 on Feb 22,2026, Elapsed time: 0:00:00
+# Errors: 0, Warnings: 0
+# 
+# vlog -sv -work work +incdir+C:/Users/Takeshi/PredictRAM/ML_engine {C:/Users/Takeshi/PredictRAM/ML_engine/ML_engine_RF_tb.sv}
+# Model Technology ModelSim - Intel FPGA Edition vlog 2020.1 Compiler 2020.02 Feb 28 2020
+# Start time: 18:52:41 on Feb 22,2026
+# vlog -reportprogress 300 -sv -work work "+incdir+C:/Users/Takeshi/PredictRAM/ML_engine" C:/Users/Takeshi/PredictRAM/ML_engine/ML_engine_RF_tb.sv 
+# -- Compiling module ML_engine_RF_tb
+# 
+# Top level modules:
+# 	ML_engine_RF_tb
+# End time: 18:52:41 on Feb 22,2026, Elapsed time: 0:00:00
+# Errors: 0, Warnings: 0
+# 
+# vsim -t 1ps -L altera_ver -L lpm_ver -L sgate_ver -L altera_mf_ver -L altera_lnsim_ver -L cyclonev_ver -L cyclonev_hssi_ver -L cyclonev_pcie_hip_ver -L rtl_work -L work -voptargs="+acc"  ML_engine_RF_tb
+# vsim -t 1ps -L altera_ver -L lpm_ver -L sgate_ver -L altera_mf_ver -L altera_lnsim_ver -L cyclonev_ver -L cyclonev_hssi_ver -L cyclonev_pcie_hip_ver -L rtl_work -L work -voptargs=""+acc"" ML_engine_RF_tb 
+# Start time: 18:52:41 on Feb 22,2026
+# Loading sv_std.std
+# Loading work.ML_engine_RF_tb
+# Loading work.ML_engine_RF
+# 
+# add wave *
+# view structure
+# .main_pane.structure.interior.cs.body.struct
+# view signals
+# .main_pane.objects.interior.cs.body.tree
+# run -all
+# =========================================================================================
+#                               PredictRAM Hybrid ML Engine Testbench                      
+# =========================================================================================
+# Test Case            | MaxRHits | UniqRows | UniqCols | ErrorRate || ACTION (1=S, 2=R) 
+# -----------------------------------------------------------------------------------------
+# 1. All Zeros         |        0 |        0 |        0 |         0 ||    0
+# 2. RowHits Edge (64) |       64 |       10 |        5 |        10 ||    1
+# 3. Ratio Rule (<0.2) |       10 |       10 |        5 |        10 ||    1
+# 4. Ratio Edge (=0.2) |       10 |       10 |        5 |        10 ||    1
+# 5. Rate+Col Edge     |        5 |       50 |        8 |        50 ||    2
+# 6. High Rate/Low Col |        5 |       50 |        7 |       150 ||    0
+# 7. ML pure decision  |        3 |        4 |        4 |        20 ||    0
+# =========================================================================================
+# ** Note: $finish    : C:/Users/Takeshi/PredictRAM/ML_engine/ML_engine_RF_tb.sv(90)
+#    Time: 70 ns  Iteration: 0  Instance: /ML_engine_RF_tb
+# 1
+# Break in Module ML_engine_RF_tb at C:/Users/Takeshi/PredictRAM/ML_engine/ML_engine_RF_tb.sv line 90
+# A time value could not be extracted from the current line
