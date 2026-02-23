@@ -85,6 +85,10 @@ rf_model.fit(X_train, y_train)
 
 print(f"Model Accuracy on Test Set: {rf_model.score(X_test, y_test):.4f}")
 
+from sklearn.metrics import classification_report
+y_pred = rf_model.predict(X_test)
+print(classification_report(y_test, y_pred, target_names=['NO_ACTION', 'SCRUB', 'REFRESH']))
+
 # ==========================================
 # 3. EXPORT TO SYSTEMVERILOG / VERILOG
 # ==========================================
