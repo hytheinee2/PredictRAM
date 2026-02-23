@@ -35,7 +35,7 @@ PredictRAM is built on a **Decoupled Diagnostic Topology**. To ensure predictive
 * **RTL Simulation & Verification:** Siemens ModelSim-Altera
 * **Machine Learning Pipeline:** Python 3, `pandas`, `scikit-learn` (Random Forest Classifier).
 * **Custom Tooling:** Custom Python-to-SystemVerilog transpiler for direct RTL mapping of decision trees.
-
+* **AI Workflow Assistance:** Perplexity, Google Gemini 3.0/3.1 Pro App Version
 ---
 
 ## 📂 Repository Navigation
